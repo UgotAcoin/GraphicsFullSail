@@ -4,8 +4,6 @@
 #include "XTime.h"
 #include <ctime>
 
-unsigned int SCREEN_ARRAY[NUM_PIXELS] = { 0xff000000 };
-
 const int numOfTrees = 10;
 Tree treeList[numOfTrees];
 bool treesInitialized = false;

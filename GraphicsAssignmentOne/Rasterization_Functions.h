@@ -1,6 +1,4 @@
 ﻿#pragma once
-#include "Defines.h"
-#include "MyMath.h"
 #include "Shader.h"
 #include "fire_02.h"
 #include "tiles_12.h"
@@ -34,32 +32,61 @@ void drawPixel(int x, int y, unsigned int color)
     if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT)
         return;
 
-    int index = y * SCREEN_WIDTH + x;
+    int index = convertDimCoords(x, y);
     SCREEN_ARRAY[index] = MyAlphaBlend(SCREEN_ARRAY[index], color);
 }
 
 // Draw line using float interpolation
-void DrawLine(int x1, int y1, int x2, int y2, unsigned int color)
+void DrawLine(const Float4WithColor& start, const Float4WithColor& end)
 {
-    float dx = static_cast<float>(x2 - x1);
-    float dy = static_cast<float>(y2 - y1);
+    // Copy input vertices
+    Float4WithColor vStart = start;
+    Float4WithColor vEnd = end;
 
-    int steps = static_cast<int>(max(std::abs(x2 - x1), std::abs(y2 - y1)));
-    if (steps == 0) 
+    // Apply vertex shader if available
+    if (VertexShader)
     {
-        drawPixel(x1, y1, color);
+        VertexShader(vStart.pos);
+        VertexShader(vEnd.pos);
+    }
+
+    // Convert to screen space
+    ScreenXY screenStart = NDCtoScreen(vStart.pos);
+    ScreenXY screenEnd = NDCtoScreen(vEnd.pos);
+
+    // Interpolation setup
+    int dx = std::abs(screenEnd.x - screenStart.x);
+    int dy = std::abs(screenEnd.y - screenStart.y);
+    int steps = max(dx, dy);
+
+    if (steps == 0)
+    {
+        unsigned int color = vStart.color;
+        if (PixelShader)
+            PixelShader(color);
+        drawPixel(screenStart.x, screenStart.y, color);
         return;
     }
 
+
+    float xStep = (screenEnd.x - screenStart.x) / static_cast<float>(steps);
+    float yStep = (screenEnd.y - screenStart.y) / static_cast<float>(steps);
+
+    float x = static_cast<float>(screenStart.x);
+    float y = static_cast<float>(screenStart.y);
+
     for (int i = 0; i <= steps; ++i)
     {
-        float t = static_cast<float>(i) / steps;
-        float x = (1.0f - t) * x1 + t * x2;
-        float y = (1.0f - t) * y1 + t * y2;
-
+        unsigned int color = vStart.color;
+        if (PixelShader)
+            PixelShader(color);
         drawPixel(static_cast<int>(std::round(x)), static_cast<int>(std::round(y)), color);
+
+        x += xStep;
+        y += yStep;
     }
 }
+
 
 int RandomNumber100to400() 
 {
@@ -143,19 +170,34 @@ void LabOneStuff(XTime& timer, bool& treesInitialized, Tree* treeList, int numOf
 
 void LabTwoStuff()
 {
-    DrawLine(356, 356, 250, 400, 0xffff0000);
-    DrawLine(144, 144, 250, 100, 0xffff0000);
-    DrawLine(400, 250, 356, 356, 0xffff0000);
-    DrawLine(100, 250, 144, 144, 0xffff0000);
-    DrawLine(250, 400, 144, 356, 0xffff0000);
-    DrawLine(250, 100, 356, 144, 0xffff0000);
-    DrawLine(144, 356, 100, 250, 0xffff0000);
-    DrawLine(356, 144, 400, 250, 0xffff0000);
+    auto ScreenToNDC = [](int x, int y) -> Float4 {
+        Float4 f;
+        f.x = (2.0f * x / SCREEN_WIDTH) - 1.0f;
+        f.y = 1.0f - (2.0f * y / SCREEN_HEIGHT); // invert Y
+        f.z = 0.0f;
+        f.w = 1.0f;
+        return f;
+        };
 
-    DrawLine(250, 100, 250, 400, 0xff00ff00);
-    DrawLine(356, 356, 144, 144, 0xff0000ff);
-    DrawLine(144, 356, 356, 144, 0xff00ffff);
-    DrawLine(400, 250, 100, 250, 0xffffff00);
+    auto MakeVertex = [&](int x, int y, unsigned int color) -> Float4WithColor {
+        return { ScreenToNDC(x, y), color };
+        };
+
+    // Red star
+    DrawLine(MakeVertex(356, 356, 0xffff0000), MakeVertex(250, 400, 0xffff0000));
+    DrawLine(MakeVertex(144, 144, 0xffff0000), MakeVertex(250, 100, 0xffff0000));
+    DrawLine(MakeVertex(400, 250, 0xffff0000), MakeVertex(356, 356, 0xffff0000));
+    DrawLine(MakeVertex(100, 250, 0xffff0000), MakeVertex(144, 144, 0xffff0000));
+    DrawLine(MakeVertex(250, 400, 0xffff0000), MakeVertex(144, 356, 0xffff0000));
+    DrawLine(MakeVertex(250, 100, 0xffff0000), MakeVertex(356, 144, 0xffff0000));
+    DrawLine(MakeVertex(144, 356, 0xffff0000), MakeVertex(100, 250, 0xffff0000));
+    DrawLine(MakeVertex(356, 144, 0xffff0000), MakeVertex(400, 250, 0xffff0000));
+
+    // Extra lines
+    DrawLine(MakeVertex(250, 100, 0xff00ff00), MakeVertex(250, 400, 0xff00ff00)); // Green vertical
+    DrawLine(MakeVertex(356, 356, 0xff0000ff), MakeVertex(144, 144, 0xff0000ff)); // Blue diagonal
+    DrawLine(MakeVertex(144, 356, 0xff00ffff), MakeVertex(356, 144, 0xff00ffff)); // Cyan diagonal
+    DrawLine(MakeVertex(400, 250, 0xffffff00), MakeVertex(100, 250, 0xffffff00)); // Yellow horizontal
 }
 
 void LabThreeStuff(XTime& timer, Float4* gridVerts, int gridVertCount, Float4* cubeVerts, int cubeVertCount)
@@ -163,84 +205,57 @@ void LabThreeStuff(XTime& timer, Float4* gridVerts, int gridVertCount, Float4* c
     timer.Signal();
     float elapsed = static_cast<float>(timer.TotalTime());
 
-    //  === World Matrix for Grid ===
-    Matrix4x4 worldGrid = CreateIdentityMatrix();
+    // === World Matrix for Grid ===
+    Matrix4x4 gridOffset = CreateTranslationMatrix(0.0f, -0.5f, 1.0f);
+    Matrix4x4 gridScale = CreateScaleMatrix(2.14f, 1.0f, 2.14f);
+    Matrix4x4 worldGrid;
+    MatrixMatrixMultiply(worldGrid, gridScale, gridOffset); 
+
 
     // === World Matrix for Cube ===
     Matrix4x4 rotationY = CreateRotationYMatrix(elapsed);
-    Matrix4x4 translation = CreateTranslationMatrix(0.0f, 0.25f, 0.0f);
+    Matrix4x4 translation = CreateTranslationMatrix(0.0f, 0.15f, 0.0f);
     Matrix4x4 worldCube;
-    MatrixMatrixMultiply(worldCube, rotationY, translation);
+    MatrixMatrixMultiply(worldCube, translation, rotationY);
 
     // === View Matrix ===
-    Matrix4x4 viewRotation = CreateRotationXMatrix(18.0f * DEG2RAD);
-    Matrix4x4 viewTranslation = CreateTranslationMatrix(0.0f, 0.0f, -1.0f);
+    Matrix4x4 viewRotation = CreateRotationXMatrix(18.0f * DEG2RAD);     // Tilt camera down
+    Matrix4x4 viewTranslation = CreateTranslationMatrix(0.0f, 0.0f, -1.0f); // Pull back camera
     Matrix4x4 viewCombined;
-    MatrixMatrixMultiply(viewCombined, viewTranslation, viewRotation); 
-    Matrix4x4 view = InverseRigidBodyMatrix(viewCombined);
+    MatrixMatrixMultiply(viewCombined, viewTranslation, viewRotation);
+    Matrix4x4 view = InverseRigidBodyMatrix(viewCombined); // Invert to get proper view matrix
 
     // === Projection Matrix ===
     Matrix4x4 proj = CreatePerspectiveMatrix(
         90.0f * DEG2RAD,
-        (float)SCREEN_WIDTH / SCREEN_HEIGHT,
+        static_cast<float>(SCREEN_WIDTH) / SCREEN_HEIGHT,
         0.1f,
         10.0f
     );
 
+    VertexShader = VS_World;
+    SV_ViewMatrix = view;
+    SV_ProjectionMatrix = proj;
+
     // === DRAW GRID ===
-    for (int i = 0; i < gridVertCount; i += 2) 
+    PixelShader = PS_White;
+    SV_WorldMatrix = worldGrid;
+    for (int i = 0; i < gridVertCount; i += 2)
     {
-        Float4 a = MatrixVertexMultiply(gridVerts[i], worldGrid);
-        Float4 b = MatrixVertexMultiply(gridVerts[i + 1], worldGrid);
-
-        a = MatrixVertexMultiply(a, view);
-        b = MatrixVertexMultiply(b, view);
-
-        a = MatrixVertexMultiply(a, proj);
-        b = MatrixVertexMultiply(b, proj);
-
-        a.x /= a.w;
-        a.y /= a.w;
-        a.z /= a.w;
-        a.w = 1.0f;
-
-        b.x /= b.w;
-        b.y /= b.w;
-        b.z /= b.w;
-        b.w = 1.0f;
-
-        ScreenXY p0 = NDCtoScreen(a);
-        ScreenXY p1 = NDCtoScreen(b);
-        DrawLine(p0.x, p0.y, p1.x, p1.y, 0xFFFFFFFF);
+        Float4WithColor v0 = { gridVerts[i], 0xFFFFFFFF };
+        Float4WithColor v1 = { gridVerts[i + 1], 0xFFFFFFFF };
+        DrawLine(v0, v1);
     }
-
 
     // === DRAW CUBE ===
-    for (int i = 0; i < cubeVertCount; i += 2) 
+    PixelShader = PS_Green;
+    SV_WorldMatrix = worldCube;
+    for (int i = 0; i < cubeVertCount; i += 2)
     {
-        Float4 a = MatrixVertexMultiply(cubeVerts[i], worldCube);
-        Float4 b = MatrixVertexMultiply(cubeVerts[i + 1], worldCube);
-
-        a = MatrixVertexMultiply(a, view);
-        b = MatrixVertexMultiply(b, view);
-
-        a = MatrixVertexMultiply(a, proj);
-        b = MatrixVertexMultiply(b, proj);
-
-        a.x /= a.w;
-        a.y /= a.w;
-        a.z /= a.w;
-        a.w = 1.0f;
-
-        b.x /= b.w;
-        b.y /= b.w;
-        b.z /= b.w;
-        b.w = 1.0f;
-
-        ScreenXY p0 = NDCtoScreen(a);
-        ScreenXY p1 = NDCtoScreen(b);
-        DrawLine(p0.x, p0.y, p1.x, p1.y, 0xFF00FF00); 
+        Float4WithColor v0 = { cubeVerts[i], 0xFF00FF00 };
+        Float4WithColor v1 = { cubeVerts[i + 1], 0xFF00FF00 };
+        DrawLine(v0, v1);
     }
+
+    PixelShader = nullptr;
 }
-
-

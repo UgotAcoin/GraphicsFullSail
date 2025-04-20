@@ -8,12 +8,18 @@
 #define C2C(c) (((c & 0x0000FF00u) << 8u) | ((c & 0xFF000000u) >> 24u) | ((c & 0x000000FFu) << 24u) | ((c & 0x00FF0000u) >> 8u))
 
 // Global draw buffer
-extern unsigned int SCREEN_ARRAY[NUM_PIXELS];
+unsigned int SCREEN_ARRAY[NUM_PIXELS];
 
 // Structs
 struct Float4 
 {
     float x, y, z, w;
+};
+
+struct Float4WithColor
+{
+    Float4 pos;           // Position in 4D space
+    unsigned int color;   // Color in ARGB format
 };
 
 struct Matrix4x4 

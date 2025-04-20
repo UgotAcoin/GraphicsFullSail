@@ -127,16 +127,16 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\..\OneDrive\Desktop\Week_1_Handout\Class Utilities\RasterSurface.cpp" />
     <ClCompile Include="GraphicsAssignmentOne.cpp" />
+    <ClCompile Include="RasterSurface.cpp" />
     <ClCompile Include="XTime.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\..\..\..\OneDrive\Desktop\Week_1_Handout\Class Utilities\RasterSurface.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="fire_02.h" />
     <ClInclude Include="MyMath.h" />
     <ClInclude Include="Rasterization_Functions.h" />
+    <ClInclude Include="RasterSurface.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="tiles_12.h" />
     <ClInclude Include="VertexData.h" />
