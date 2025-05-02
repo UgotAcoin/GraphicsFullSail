@@ -1,6 +1,7 @@
 #pragma once
 #include "Defines.h"
 #include <cmath>
+#include <cfloat>
 
 constexpr float DEG2RAD = 3.14159265f / 180.0f;
 
@@ -22,7 +23,7 @@ Matrix4x4 CreateTranslationMatrix(float x, float y, float z)
     return m;
 }
 
-Matrix4x4 CreateRotationXMatrix(float angleRadians) 
+Matrix4x4 CreateRotationXMatrix(float angleRadians)
 {
     Matrix4x4 m = CreateIdentityMatrix();
     float c = std::cos(angleRadians);
@@ -34,7 +35,7 @@ Matrix4x4 CreateRotationXMatrix(float angleRadians)
     return m;
 }
 
-Matrix4x4 CreateRotationYMatrix(float angleRadians) 
+Matrix4x4 CreateRotationYMatrix(float angleRadians)
 {
     Matrix4x4 m = CreateIdentityMatrix();
     float c = std::cos(angleRadians);
@@ -46,20 +47,30 @@ Matrix4x4 CreateRotationYMatrix(float angleRadians)
     return m;
 }
 
-Matrix4x4 CreatePerspectiveMatrix(float fovYRadians, float aspect, float nearZ, float farZ) 
+Matrix4x4 CreatePerspectiveMatrix(float fovYRadians, float aspect, float nearZ, float farZ)
 {
     Matrix4x4 m = {};
-    float f = 1.0f / std::tan(fovYRadians * 0.5f);
-    m.m[0][0] = f / aspect;
-    m.m[1][1] = f;
-    m.m[2][2] = farZ / (farZ - nearZ);
-    m.m[2][3] = 1.0f;
-    m.m[3][2] = (-nearZ * farZ) / (farZ - nearZ);
+    float f = 1.0f / std::tan(fovYRadians * 0.5f); // Computes the scale
+    m.m[0][0] = f / aspect; // Horizontal scale
+    m.m[1][1] = f; // Vertical Scale
+    m.m[2][2] = farZ / (farZ - nearZ); // compresses Z values between near and far planes.
+    m.m[2][3] = 1.0f; // Makes the perspective divide happen
+    m.m[3][2] = (-nearZ * farZ) / (farZ - nearZ); // Offsets Z after projection for correct depth range
+    return m;
+}
+
+Matrix4x4 CreateScaleMatrix(float sx, float sy, float sz)
+{
+    Matrix4x4 m = {};
+    m.m[0][0] = sx;
+    m.m[1][1] = sy;
+    m.m[2][2] = sz;
+    m.m[3][3] = 1.0f;
     return m;
 }
 
 // Inverts a matrix that only has rotation + translation
-Matrix4x4 InverseRigidBodyMatrix(const Matrix4x4& m) 
+Matrix4x4 InverseRigidBodyMatrix(const Matrix4x4& m)
 {
     Matrix4x4 inv = CreateIdentityMatrix();
     // Transpose the 3x3 rotation part
@@ -78,13 +89,15 @@ Matrix4x4 InverseRigidBodyMatrix(const Matrix4x4& m)
 // Matrix multiplication
 void MatrixMatrixMultiply(Matrix4x4& out, const Matrix4x4& a, const Matrix4x4& b)
 {
-    for (int r = 0; r < 4; ++r)
+    for (int row = 0; row < 4; ++row)
     {
-        for (int c = 0; c < 4; ++c)
+        for (int column = 0; column < 4; ++column)
         {
-            out.m[r][c] = 0.0f;
-            for (int k = 0; k < 4; ++k)
-                out.m[r][c] += a.m[r][k] * b.m[k][c];
+            // Init current output to zero
+            out.m[row][column] = 0.0f;
+            // Math for Matrix * Matrix
+            for (int index = 0; index < 4; ++index)
+                out.m[row][column] += a.m[row][index] * b.m[index][column];
         }
     }
 }
@@ -100,10 +113,40 @@ Float4 MatrixVertexMultiply(const Float4& v, const Matrix4x4& m)
     return out;
 }
 
+// Normalized Device Coordinates
 ScreenXY NDCtoScreen(const Float4& ndc)
 {
     ScreenXY screen;
+    // X does not need to invert because it goes the same direction is Raster and most Screen
     screen.x = static_cast<int>((ndc.x * 0.5f + 0.5f) * SCREEN_WIDTH);
+    // Inverts the Y to account for Raster Space
     screen.y = static_cast<int>((-ndc.y * 0.5f + 0.5f) * SCREEN_HEIGHT);
     return screen;
+}
+
+// 2D to 1D
+int convertDimCoords(int xPos, int yPos)
+{
+    return yPos * SCREEN_WIDTH + xPos;
+}
+
+int MyMinimum(int a, int b, int c) {
+    int min = a;
+    if (b < min) min = b;
+    if (c < min) min = c;
+    return min;
+}
+
+int MyMaximum(int a, int b, int c) {
+    int max = a;
+    if (b > max) max = b;
+    if (c > max) max = c;
+    return max;
+}
+
+float Clamp(float val, float minVal, float maxVal)
+{
+    if (val < minVal) return minVal;
+    if (val > maxVal) return maxVal;
+    return val;
 }

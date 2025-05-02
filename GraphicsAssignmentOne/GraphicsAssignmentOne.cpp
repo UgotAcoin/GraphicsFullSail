@@ -1,10 +1,7 @@
 #include "RasterSurface.h"
 #include "Rasterization_Functions.h"
-#include "VertexData.h" 
-#include "XTime.h"
-#include <ctime>
 
-unsigned int SCREEN_ARRAY[NUM_PIXELS] = { 0xff000000 };
+#include <ctime>
 
 const int numOfTrees = 10;
 Tree treeList[numOfTrees];
@@ -25,13 +22,14 @@ int main()
     InitializeGridVerts();
     InitializeCubeVerts();
 
-    do 
+    do
     {
         clearScreen(); // Move outside loop for LabOneStuff();
 
         //LabOneStuff(timer, treesInitialized, treeList, 10, fireX, fireY, fireTimeAccumulator, fireFrameDuration);
         //LabTwoStuff();
-        LabThreeStuff(timer, gridVerts, 44, cubeVerts, 24);
+        //LabThreeStuff(timer, gridVerts, 44, cubeVertsUV, 36);
+        LabFourStuff(timer);
 
     } while (RS_Update(SCREEN_ARRAY, NUM_PIXELS));
 

@@ -135,9 +135,12 @@
     <ClInclude Include="..\..\..\..\OneDrive\Desktop\Week_1_Handout\Class Utilities\RasterSurface.h" />
     <ClInclude Include="Defines.h" />
     <ClInclude Include="fire_02.h" />
+    <ClInclude Include="greendragon.h" />
     <ClInclude Include="MyMath.h" />
     <ClInclude Include="Rasterization_Functions.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="StoneHenge.h" />
+    <ClInclude Include="StoneHenge_Texture.h" />
     <ClInclude Include="tiles_12.h" />
     <ClInclude Include="VertexData.h" />
     <ClInclude Include="XTime.h" />
